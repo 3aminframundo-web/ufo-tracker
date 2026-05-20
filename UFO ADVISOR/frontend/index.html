@@ -1,0 +1,1181 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+  <meta name="theme-color" content="#00ff41"/>
+  <title>UFO TRACKER</title>
+  
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&family=Rajdhani:wght@400;600;700&display=swap" rel="stylesheet"/>
+  
+  <style>
+    /* ══════════════════════════════════════
+       🌑 VARIABLES & RESET - TEMA NEÓN VERDE
+       ══════════════════════════════════════ */
+    :root {
+      --neon-green: #00ff41;
+      --neon-green-dim: #00cc33;
+      --neon-green-glow: rgba(0, 255, 65, 0.6);
+      --bg-primary: #000000;
+      --bg-secondary: #0a0a0a;
+      --bg-card: #111111;
+      --border-neon: #00ff4133;
+      --text-primary: #e0e0e0;
+      --text-dim: #666666;
+      --danger: #ff0040;
+      --warning: #ffaa00;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Rajdhani', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      overflow: hidden;
+    }
+
+    /* ══════════════════════════════════════
+       🎬 PANTALLA DE CARGA / INTRO
+       ══════════════════════════════════════ */
+    #intro-screen {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: #000;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.8s ease, visibility 0.8s;
+    }
+
+    #intro-screen.fade-out {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .intro-logo {
+      width: 320px;
+      max-width: 80vw;
+      opacity: 0;
+      transform: scale(0.8);
+      animation: logoReveal 1.5s ease-out 0.5s forwards;
+      filter: drop-shadow(0 0 20px var(--neon-green-glow)) 
+              drop-shadow(0 0 40px rgba(0,255,65,0.3));
+    }
+
+    .intro-tagline {
+      font-family: 'Share Tech Mono', monospace;
+      color: var(--neon-green);
+      font-size: 0.9rem;
+      letter-spacing: 4px;
+      margin-top: 1.5rem;
+      opacity: 0;
+      animation: taglineReveal 1s ease-out 1.5s forwards;
+      text-shadow: 0 0 10px var(--neon-green-glow);
+    }
+
+    .intro-line {
+      width: 0;
+      height: 2px;
+      background: var(--neon-green);
+      margin-top: 1rem;
+      box-shadow: 0 0 10px var(--neon-green);
+      animation: lineExpand 1s ease-out 2s forwards;
+    }
+
+    .intro-loader {
+      margin-top: 2rem;
+      display: flex;
+      gap: 8px;
+      opacity: 0;
+      animation: fadeIn 0.5s ease 2.5s forwards;
+    }
+
+    .intro-loader span {
+      width: 12px; height: 12px;
+      background: var(--neon-green);
+      border-radius: 50%;
+      animation: loaderPulse 1.2s ease-in-out infinite;
+      box-shadow: 0 0 10px var(--neon-green);
+    }
+
+    .intro-loader span:nth-child(2) { animation-delay: 0.2s; }
+    .intro-loader span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes logoReveal {
+      0% { opacity: 0; transform: scale(0.8) rotateX(20deg); }
+      50% { opacity: 0.5; }
+      100% { opacity: 1; transform: scale(1) rotateX(0deg); }
+    }
+
+    @keyframes taglineReveal {
+      0% { opacity: 0; letter-spacing: 10px; }
+      100% { opacity: 1; letter-spacing: 4px; }
+    }
+
+    @keyframes lineExpand {
+      0% { width: 0; }
+      100% { width: 200px; }
+    }
+
+    @keyframes loaderPulse {
+      0%, 100% { transform: scale(1); opacity: 0.3; }
+      50% { transform: scale(1.5); opacity: 1; }
+    }
+
+    @keyframes fadeIn {
+      to { opacity: 1; }
+    }
+
+    /* Efecto glitch en hover del logo */
+    .intro-logo:hover {
+      animation: glitch 0.3s ease-in-out;
+    }
+
+    @keyframes glitch {
+      0% { transform: translate(0); filter: drop-shadow(0 0 20px var(--neon-green-glow)); }
+      20% { transform: translate(-3px, 3px); filter: drop-shadow(-5px 0 #ff0040) drop-shadow(5px 0 #00ff41); }
+      40% { transform: translate(-3px, -3px); }
+      60% { transform: translate(3px, 3px); filter: drop-shadow(3px 0 #ff0040) drop-shadow(-3px 0 #00ff41); }
+      80% { transform: translate(3px, -3px); }
+      100% { transform: translate(0); filter: drop-shadow(0 0 20px var(--neon-green-glow)); }
+    }
+
+    /* ══════════════════════════════════════
+       🖥️ APP PRINCIPAL
+       ══════════════════════════════════════ */
+    #main-app {
+      opacity: 0;
+      transition: opacity 0.5s ease 0.3s;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    #main-app.visible {
+      opacity: 1;
+    }
+
+    /* ══════════════════════════════════════
+       📡 HEADER / NAVBAR
+       ══════════════════════════════════════ */
+    .header {
+      background: linear-gradient(180deg, #000 0%, #0a0a0a 100%);
+      border-bottom: 1px solid var(--border-neon);
+      padding: 0.75rem 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: relative;
+      z-index: 100;
+    }
+
+    .header::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 0;
+      width: 100%;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, var(--neon-green), transparent);
+      animation: scanLine 3s linear infinite;
+    }
+
+    @keyframes scanLine {
+      0% { opacity: 0.3; }
+      50% { opacity: 1; }
+      100% { opacity: 0.3; }
+    }
+
+    .logo-nav {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      cursor: pointer;
+      transition: all 0.3s;
+    }
+
+    .logo-nav:hover {
+      filter: drop-shadow(0 0 10px var(--neon-green));
+    }
+
+    .logo-nav img {
+      height: 36px;
+      filter: drop-shadow(0 0 8px var(--neon-green-glow));
+    }
+
+    .logo-nav .brand {
+      font-family: 'Orbitron', monospace;
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--neon-green);
+      text-shadow: 0 0 10px var(--neon-green-glow);
+      letter-spacing: 2px;
+    }
+
+    .logo-nav .brand span {
+      color: #fff;
+      font-weight: 400;
+    }
+
+    /* Filtros con animación neón */
+    .filters {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .filter-select {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .filter-select select {
+      appearance: none;
+      background: #0a0a0a;
+      border: 1px solid #333;
+      color: var(--neon-green);
+      padding: 0.5rem 2rem 0.5rem 0.75rem;
+      border-radius: 4px;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.85rem;
+      cursor: pointer;
+      transition: all 0.3s;
+      outline: none;
+    }
+
+    .filter-select::after {
+      content: '▼';
+      position: absolute;
+      right: 0.5rem;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--neon-green);
+      font-size: 0.6rem;
+      pointer-events: none;
+    }
+
+    .filter-select select:hover,
+    .filter-select select:focus {
+      border-color: var(--neon-green);
+      box-shadow: 0 0 15px rgba(0, 255, 65, 0.2), inset 0 0 15px rgba(0, 255, 65, 0.05);
+    }
+
+    .filter-select select option {
+      background: #111;
+      color: var(--neon-green);
+    }
+
+    /* Botón de búsqueda con efecto neón */
+    .btn-search {
+      position: relative;
+      background: transparent;
+      border: 1px solid var(--neon-green);
+      color: var(--neon-green);
+      padding: 0.5rem 1.25rem;
+      border-radius: 4px;
+      font-family: 'Orbitron', monospace;
+      font-size: 0.8rem;
+      font-weight: 700;
+      cursor: pointer;
+      overflow: hidden;
+      transition: all 0.3s;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .btn-search::before {
+      content: '';
+      position: absolute;
+      top: 0; left: -100%;
+      width: 100%; height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(0,255,65,0.2), transparent);
+      transition: left 0.5s;
+    }
+
+    .btn-search:hover {
+      background: var(--neon-green);
+      color: #000;
+      box-shadow: 0 0 20px var(--neon-green-glow), 0 0 40px rgba(0,255,65,0.3);
+      transform: translateY(-2px);
+    }
+
+    .btn-search:hover::before {
+      left: 100%;
+    }
+
+    .btn-search:active {
+      transform: translateY(0);
+    }
+
+    /* Indicador de estado */
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--text-dim);
+    }
+
+    .status-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      background: var(--neon-green);
+      box-shadow: 0 0 10px var(--neon-green);
+      animation: statusPulse 2s ease-in-out infinite;
+    }
+
+    .status-dot.offline {
+      background: var(--danger);
+      box-shadow: 0 0 10px var(--danger);
+    }
+
+    @keyframes statusPulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.8); }
+    }
+
+    /* ══════════════════════════════════════
+       ️ LAYOUT PRINCIPAL
+       ═════════════════════════════════════ */
+    .main {
+      display: grid;
+      grid-template-columns: 1fr 400px;
+      gap: 1rem;
+      padding: 1rem;
+      height: calc(100vh - 70px);
+      overflow: hidden;
+    }
+
+    /* Mapa con borde neón */
+    #map {
+      height: 100%;
+      border-radius: 8px;
+      border: 1px solid var(--border-neon);
+      box-shadow: 0 0 30px rgba(0, 255, 65, 0.1), inset 0 0 30px rgba(0,0,0,0.5);
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Esquinas decorativas del mapa */
+    #map::before {
+      content: '';
+      position: absolute;
+      top: -1px; left: -1px;
+      width: 30px; height: 30px;
+      border-top: 2px solid var(--neon-green);
+      border-left: 2px solid var(--neon-green);
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    #map::after {
+      content: '';
+      position: absolute;
+      bottom: -1px; right: -1px;
+      width: 30px; height: 30px;
+      border-bottom: 2px solid var(--neon-green);
+      border-right: 2px solid var(--neon-green);
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    /* ══════════════════════════════════════
+       📋 SIDEBAR / PANEL DE AVISTAMIENTOS
+       ═════════════════════════════════════ */
+    .sidebar {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-neon);
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 0 30px rgba(0, 255, 65, 0.05);
+    }
+
+    .sidebar-header {
+      padding: 1rem;
+      border-bottom: 1px solid var(--border-neon);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: linear-gradient(90deg, rgba(0,255,65,0.05), transparent);
+    }
+
+    .sidebar-header h3 {
+      font-family: 'Orbitron', monospace;
+      font-size: 0.9rem;
+      color: var(--neon-green);
+      text-shadow: 0 0 10px var(--neon-green-glow);
+      letter-spacing: 2px;
+      text-transform: uppercase;
+    }
+
+    .count-badge {
+      background: var(--neon-green);
+      color: #000;
+      padding: 0.2rem 0.6rem;
+      border-radius: 12px;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.75rem;
+      font-weight: 700;
+      box-shadow: 0 0 10px var(--neon-green-glow);
+    }
+
+    .sightings-list {
+      flex: 1;
+      overflow-y: auto;
+      padding: 0.75rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    /* Custom scrollbar */
+    .sightings-list::-webkit-scrollbar { width: 4px; }
+    .sightings-list::-webkit-scrollbar-track { background: #000; }
+    .sightings-list::-webkit-scrollbar-thumb { background: var(--neon-green); border-radius: 2px; }
+
+    /* Cards con animación de entrada */
+    .sighting-card {
+      background: var(--bg-card);
+      border: 1px solid #222;
+      border-left: 3px solid transparent;
+      border-radius: 4px;
+      padding: 0.75rem;
+      cursor: pointer;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+      opacity: 0;
+      transform: translateX(-20px);
+      animation: cardSlideIn 0.5s ease forwards;
+    }
+
+    .sighting-card:nth-child(1) { animation-delay: 0.05s; }
+    .sighting-card:nth-child(2) { animation-delay: 0.1s; }
+    .sighting-card:nth-child(3) { animation-delay: 0.15s; }
+    .sighting-card:nth-child(4) { animation-delay: 0.2s; }
+    .sighting-card:nth-child(5) { animation-delay: 0.25s; }
+
+    @keyframes cardSlideIn {
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    .sighting-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: linear-gradient(90deg, rgba(0,255,65,0.1), transparent);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .sighting-card:hover {
+      border-color: var(--neon-green);
+      border-left-color: var(--neon-green);
+      box-shadow: 0 0 20px rgba(0, 255, 65, 0.15), -4px 0 0 var(--neon-green);
+      transform: translateX(4px);
+    }
+
+    .sighting-card:hover::before {
+      opacity: 1;
+    }
+
+    .sighting-card .card-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.4rem;
+    }
+
+    .sighting-card .card-date {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--neon-green-dim);
+    }
+
+    .sighting-card .card-shape {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.65rem;
+      color: #000;
+      background: var(--neon-green);
+      padding: 0.15rem 0.5rem;
+      border-radius: 2px;
+      text-transform: uppercase;
+      box-shadow: 0 0 8px var(--neon-green-glow);
+    }
+
+    .sighting-card .card-location {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: #fff;
+      margin-bottom: 0.3rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .sighting-card .card-preview {
+      font-size: 0.8rem;
+      color: var(--text-dim);
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      line-height: 1.4;
+    }
+
+    /* Stats panel */
+    .stats-panel {
+      padding: 0.75rem;
+      border-top: 1px solid var(--border-neon);
+      background: rgba(0, 255, 65, 0.02);
+    }
+
+    .stats-panel h4 {
+      font-family: 'Orbitron', monospace;
+      font-size: 0.75rem;
+      color: var(--neon-green);
+      letter-spacing: 2px;
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+    }
+
+    .stat-item {
+      display: flex;
+      justify-content: space-between;
+      padding: 0.3rem 0;
+      font-size: 0.8rem;
+      border-bottom: 1px dashed #222;
+    }
+
+    .stat-item:last-child { border-bottom: none; }
+
+    .stat-item span:first-child { color: var(--text-dim); }
+    .stat-item span:last-child { color: var(--neon-green); font-family: 'Share Tech Mono', monospace; }
+
+    /* ══════════════════════════════════════
+       💬 MODAL
+       ══════════════════════════════════════ */
+    .modal-overlay {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100vw; height: 100vh;
+      background: rgba(0, 0, 0, 0.9);
+      z-index: 2000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s;
+      backdrop-filter: blur(10px);
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal-content {
+      background: var(--bg-secondary);
+      border: 1px solid var(--neon-green);
+      border-radius: 8px;
+      width: 90%;
+      max-width: 550px;
+      max-height: 80vh;
+      overflow-y: auto;
+      padding: 2rem;
+      position: relative;
+      transform: scale(0.9) translateY(20px);
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: 0 0 50px rgba(0, 255, 65, 0.2), 0 0 100px rgba(0, 255, 65, 0.1);
+    }
+
+    .modal-overlay.active .modal-content {
+      transform: scale(1) translateY(0);
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 1rem; right: 1rem;
+      background: none;
+      border: 1px solid #333;
+      color: var(--text-dim);
+      width: 32px; height: 32px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 1.2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s;
+    }
+
+    .modal-close:hover {
+      border-color: var(--neon-green);
+      color: var(--neon-green);
+      box-shadow: 0 0 15px var(--neon-green-glow);
+    }
+
+    .modal-title {
+      font-family: 'Orbitron', monospace;
+      font-size: 1.2rem;
+      color: var(--neon-green);
+      text-shadow: 0 0 10px var(--neon-green-glow);
+      margin-bottom: 1.5rem;
+      padding-bottom: 0.75rem;
+      border-bottom: 1px solid var(--border-neon);
+    }
+
+    .modal-field {
+      margin-bottom: 1rem;
+    }
+
+    .modal-field label {
+      display: block;
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--neon-green-dim);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 0.3rem;
+    }
+
+    .modal-field p {
+      color: var(--text-primary);
+      line-height: 1.6;
+      font-size: 0.95rem;
+    }
+
+    .modal-divider {
+      border: none;
+      border-top: 1px solid var(--border-neon);
+      margin: 1.5rem 0;
+    }
+
+    /* ══════════════════════════════════════
+       🔄 LOADING & ESTADOS
+       ══════════════════════════════════════ */
+    .loading-state {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 3rem 1rem;
+      color: var(--text-dim);
+    }
+
+    .loading-radar {
+      width: 60px; height: 60px;
+      border: 2px solid var(--neon-green);
+      border-radius: 50%;
+      position: relative;
+      margin-bottom: 1rem;
+    }
+
+    .loading-radar::before {
+      content: '';
+      position: absolute;
+      top: 50%; left: 50%;
+      width: 50%; height: 2px;
+      background: var(--neon-green);
+      transform-origin: left center;
+      animation: radarSweep 2s linear infinite;
+      box-shadow: 0 0 10px var(--neon-green);
+    }
+
+    @keyframes radarSweep {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      font-family: 'Share Tech Mono', monospace;
+      font-size: 0.85rem;
+      animation: textBlink 1.5s ease-in-out infinite;
+    }
+
+    @keyframes textBlink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    .error-state {
+      text-align: center;
+      padding: 2rem;
+      color: var(--danger);
+    }
+
+    .error-state .error-icon {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+    }
+
+    /* ══════════════════════════════════════
+       📱 RESPONSIVE
+       ══════════════════════════════════════ */
+    @media (max-width: 1024px) {
+      .main {
+        grid-template-columns: 1fr;
+        grid-template-rows: 50vh 1fr;
+        height: auto;
+      }
+      .sidebar { height: 500px; }
+      .filters { flex-direction: column; width: 100%; }
+      .filters select, .filters button { width: 100%; }
+      .logo-nav .brand { font-size: 0.9rem; }
+    }
+
+    @media (max-width: 600px) {
+      .header { flex-direction: column; gap: 0.75rem; }
+      .intro-logo { width: 250px; }
+      .modal-content { padding: 1.5rem; }
+    }
+
+    /* ══════════════════════════════════════
+       🎨 UTILIDADES LEAFLET CUSTOM
+       ══════════════════════════════════════ */
+    .leaflet-control-zoom a {
+      background: #111 !important;
+      color: var(--neon-green) !important;
+      border-color: #333 !important;
+    }
+
+    .leaflet-control-zoom a:hover {
+      background: var(--neon-green) !important;
+      color: #000 !important;
+    }
+
+    .leaflet-popup-content-wrapper {
+      background: #111 !important;
+      color: var(--neon-green) !important;
+      border: 1px solid var(--neon-green) !important;
+      border-radius: 4px !important;
+      box-shadow: 0 0 20px rgba(0,255,65,0.3) !important;
+    }
+
+    .leaflet-popup-tip {
+      background: #111 !important;
+      border: 1px solid var(--neon-green) !important;
+    }
+
+    .leaflet-popup-close-button {
+      color: var(--neon-green) !important;
+    }
+
+    .custom-marker {
+      filter: drop-shadow(0 0 8px var(--neon-green)) !important;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ══════════════════════════════════════
+       🎬 PANTALLA DE INTRO
+       ══════════════════════════════════════ -->
+  <div id="intro-screen">
+    <img 
+      src="logo-3am.png" 
+      alt="3AM" 
+      class="intro-logo"
+      onerror="this.src='data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 400 200%22%3E%3Ctext x=%2250%25%22 y=%2250%25%22 dominant-baseline=%22middle%22 text-anchor=%22middle%22 font-family=%22monospace%22 font-size=%2280%22 fill=%22%2300ff41%22 font-weight=%22bold%22%3E3AM%3C/text%3E%3C/svg%3E'"
+    >
+    <div class="intro-tagline">LA VERSIÓN OFICIAL NUNCA ES LA ÚNICA</div>
+    <div class="intro-line"></div>
+    <div class="intro-loader">
+      <span></span><span></span><span></span>
+    </div>
+  </div>
+
+  <!-- ══════════════════════════════════════
+       🖥️ APP PRINCIPAL
+       ══════════════════════════════════════ -->
+  <div id="main-app">
+    <!-- Header -->
+    <header class="header">
+      <div class="logo-nav" onclick="location.reload()">
+        <img src="logo-3am.png" alt="Logo" onerror="this.style.display='none'">
+        <div class="brand">UFO <span>TRACKER</span></div>
+      </div>
+
+      <div class="filters">
+        <div class="filter-select">
+          <select id="shapeFilter">
+            <option value=""> TODAS LAS FORMAS</option>
+            <option value="light">💡 LUZ</option>
+            <option value="triangle">🔺 TRIÁNGULO</option>
+            <option value="disk"> DISCO</option>
+            <option value="sphere">⚪ ESFERA</option>
+            <option value="cigar"> CIGARRO</option>
+            <option value="unknown">❓ DESCONOCIDO</option>
+          </select>
+        </div>
+        <div class="filter-select">
+          <select id="countryFilter">
+            <option value="">🌍 TODOS LOS PAÍSES</option>
+            <option value="us"> USA</option>
+            <option value="mx">🇲 MÉXICO</option>
+            <option value="gb">🇬🇧 REINO UNIDO</option>
+            <option value="ca">🇨🇦 CANADÁ</option>
+            <option value="au">🇺 AUSTRALIA</option>
+          </select>
+        </div>
+        <button class="btn-search" id="searchBtn">
+          🔍 ESCANEAR
+        </button>
+      </div>
+
+      <div class="status-indicator">
+        <div class="status-dot" id="statusDot"></div>
+        <span id="statusText">CONECTANDO...</span>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main">
+      <div id="map"></div>
+      
+      <aside class="sidebar">
+        <div class="sidebar-header">
+          <h3>📡 REGISTROS</h3>
+          <span class="count-badge" id="countBadge">0</span>
+        </div>
+        
+        <div class="sightings-list" id="sightingsList">
+          <div class="loading-state">
+            <div class="loading-radar"></div>
+            <div class="loading-text">ESCANEANDO FRECUENCIAS...</div>
+          </div>
+        </div>
+
+        <div class="stats-panel" id="statsPanel">
+          <h4>📊 TELEMETRÍA</h4>
+          <div class="loading-state" style="padding: 1rem;">
+            <div class="loading-text">CARGANDO DATOS...</div>
+          </div>
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <!-- Modal -->
+  <div class="modal-overlay" id="modal">
+    <div class="modal-content">
+      <button class="modal-close" id="modalClose">×</button>
+      <div class="modal-title">🛸 REPORTE DE AVISTAMIENTO</div>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  
+  <script>
+    // ══════════════════════════════════════
+    // ⚙️ CONFIGURACIÓN
+    // ══════════════════════════════════════
+    const API_BASE = "https://ufo-tracker-api.onrender.com/api";
+    const POLL_INTERVAL = 60000;
+
+    // ══════════════════════════════════════
+    //  CONTROL DE INTRO
+    // ══════════════════════════════════════
+    window.addEventListener('load', () => {
+      setTimeout(() => {
+        document.getElementById('intro-screen').classList.add('fade-out');
+        document.getElementById('main-app').classList.add('visible');
+        
+        // Iniciar app después de la transición
+        setTimeout(() => {
+          document.getElementById('intro-screen').style.display = 'none';
+          initApp();
+        }, 800);
+      }, 3500); // 3.5 segundos de intro
+    });
+
+    // ══════════════════════════════════════
+    //  INICIALIZACIÓN DEL MAPA
+    // ══════════════════════════════════════
+    let map, markers = [];
+
+    function initMap() {
+      map = L.map('map', {
+        center: [20, 0],
+        zoom: 2,
+        minZoom: 2,
+        maxZoom: 18,
+        maxBounds: [[-90, -180], [90, 180]],
+        maxBoundsViscosity: 1.0,
+        worldCopyJump: false,
+        zoomControl: true
+      });
+
+      L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '',
+        maxZoom: 19,
+        noWrap: true,
+        subdomains: 'abcd'
+      }).addTo(map);
+
+      // Marcador personalizado verde neón
+      const neonIcon = L.divIcon({
+        className: 'custom-marker',
+        html: `<div style="
+          width: 20px; height: 20px; 
+          background: #00ff41; 
+          border-radius: 50%; 
+          box-shadow: 0 0 15px #00ff41, 0 0 30px rgba(0,255,65,0.5);
+          animation: pulse 2s ease-in-out infinite;
+        "></div>
+        <style>
+          @keyframes pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.3); opacity: 0.7; }
+          }
+        </style>`,
+        iconSize: [20, 20],
+        iconAnchor: [10, 10]
+      });
+
+      window.neonIcon = neonIcon;
+    }
+
+    // ══════════════════════════════════════
+    // 📡 FUNCIONES API
+    // ══════════════════════════════════════
+    async function fetchSightings(shape = '', country = '', limit = 50) {
+      updateStatus('loading');
+      
+      try {
+        const params = new URLSearchParams({ limit, shape, country });
+        const res = await fetch(`${API_BASE}/sightings?${params}`);
+        
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        
+        const data = await res.json();
+        renderSightings(data.data);
+        updateMap(data.data);
+        document.getElementById('countBadge').textContent = data.data.length;
+        updateStatus('online');
+        return data;
+      } catch (err) {
+        console.error('API Error:', err);
+        renderError();
+        updateStatus('offline');
+      }
+    }
+
+    async function fetchStats() {
+      try {
+        const res = await fetch(`${API_BASE}/stats`);
+        const data = await res.json();
+        renderStats(data);
+      } catch (err) {
+        console.error('Stats Error:', err);
+      }
+    }
+
+    // ══════════════════════════════════════
+    // 📝 RENDERIZADO
+    // ══════════════════════════════════════
+    function renderSightings(items) {
+      const listEl = document.getElementById('sightingsList');
+      
+      if (!items || items.length === 0) {
+        listEl.innerHTML = `
+          <div class="loading-state">
+            <div class="loading-text">SIN REGISTROS ENCONTRADOS</div>
+          </div>`;
+        return;
+      }
+
+      listEl.innerHTML = items.map((item, i) => `
+        <div class="sighting-card" style="animation-delay: ${i * 0.08}s" data-index="${i}">
+          <div class="card-meta">
+            <span class="card-date">📅 ${item.date_time ? item.date_time.split('T')[0] : 'N/A'}</span>
+            <span class="card-shape">${item.shape || 'N/A'}</span>
+          </div>
+          <div class="card-location"> ${item.city || 'Ubicación'}${item.state ? ', ' + item.state : ''} ${item.country ? item.country.toUpperCase() : ''}</div>
+          <div class="card-preview">${item.comments || 'Sin descripción disponible'}</div>
+        </div>
+      `).join('');
+
+      // Event listeners para cards
+      listEl.querySelectorAll('.sighting-card').forEach(card => {
+        card.addEventListener('click', () => {
+          const index = parseInt(card.dataset.index);
+          openModal(items[index]);
+        });
+      });
+    }
+
+    function renderError() {
+      document.getElementById('sightingsList').innerHTML = `
+        <div class="error-state">
+          <div class="error-icon">⚠️</div>
+          <div style="font-family: 'Share Tech Mono', monospace; font-size: 0.85rem;">
+            ERROR DE CONEXIÓN<br>
+            <small style="color: var(--text-dim);">El servidor no responde</small>
+          </div>
+          <button class="btn-search" style="margin-top: 1rem; font-size: 0.7rem;" onclick="fetchSightings()">
+            🔄 REINTENTAR
+          </button>
+        </div>`;
+    }
+
+    function renderStats(data) {
+      const panel = document.getElementById('statsPanel');
+      const shapes = Object.entries(data.top_shapes || {}).slice(0, 5);
+      
+      panel.innerHTML = `
+        <h4>📊 TELEMETRÍA</h4>
+        <div class="stat-item">
+          <span>TOTAL REGISTROS</span>
+          <span>${(data.total_records || 0).toLocaleString()}</span>
+        </div>
+        ${shapes.map(([shape, count]) => `
+          <div class="stat-item">
+            <span>${shape.toUpperCase()}</span>
+            <span>${count}</span>
+          </div>
+        `).join('')}
+      `;
+    }
+
+    function updateMap(items) {
+      markers.forEach(m => map.removeLayer(m));
+      markers = [];
+
+      items.forEach(item => {
+        if (item.latitude && item.longitude) {
+          const marker = L.marker([item.latitude, item.longitude], { icon: window.neonIcon })
+            .addTo(map)
+            .bindPopup(`
+              <div style="font-family: 'Rajdhani', sans-serif; min-width: 150px;">
+                <strong style="color: #00ff41;">${item.city || 'N/A'}</strong><br>
+                <small>${item.shape || 'N/A'} | ${item.date_time ? item.date_time.split('T')[0] : ''}</small>
+              </div>
+            `);
+          markers.push(marker);
+        }
+      });
+
+      // Zoom al primer punto válido
+      const firstValid = items.find(i => i.latitude && i.longitude);
+      if (firstValid && markers.length > 0) {
+        map.flyTo([firstValid.latitude, firstValid.longitude], 5, { duration: 1.5 });
+      }
+    }
+
+    // ══════════════════════════════════════
+    // 💬 MODAL
+    // ══════════════════════════════════════
+    function openModal(item) {
+      const body = document.getElementById('modalBody');
+      body.innerHTML = `
+        <div class="modal-field">
+          <label>📅 FECHA / HORA</label>
+          <p>${item.date_time || 'No disponible'}</p>
+        </div>
+        <div class="modal-field">
+          <label>📍 UBICACIÓN</label>
+          <p>${item.city || 'N/A'}${item.state ? ', ' + item.state : ''} ${item.country ? item.country.toUpperCase() : ''}</p>
+        </div>
+        <div class="modal-field">
+          <label>🔷 FORMA REPORTADA</label>
+          <p style="color: var(--neon-green); font-family: 'Share Tech Mono', monospace;">${item.shape || 'No especificado'}</p>
+        </div>
+        <div class="modal-field">
+          <label>⏱ DURACIÓN</label>
+          <p>${item.duration || 'No registrada'}</p>
+        </div>
+        <hr class="modal-divider">
+        <div class="modal-field">
+          <label>📝 DESCRIPCIÓN COMPLETA</label>
+          <p>${item.comments || 'Sin descripción disponible'}</p>
+        </div>
+      `;
+      document.getElementById('modal').classList.add('active');
+    }
+
+    function closeModal() {
+      document.getElementById('modal').classList.remove('active');
+    }
+
+    document.getElementById('modalClose').addEventListener('click', closeModal);
+    document.getElementById('modal').addEventListener('click', (e) => {
+      if (e.target.id === 'modal') closeModal();
+    });
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeModal();
+    });
+
+    // ══════════════════════════════════════
+    // 🔔 ESTADO DE CONEXIÓN
+    // ══════════════════════════════════════
+    function updateStatus(state) {
+      const dot = document.getElementById('statusDot');
+      const text = document.getElementById('statusText');
+      
+      if (state === 'online') {
+        dot.classList.remove('offline');
+        text.textContent = 'EN LÍNEA';
+        text.style.color = 'var(--neon-green)';
+      } else if (state === 'offline') {
+        dot.classList.add('offline');
+        text.textContent = 'DESCONECTADO';
+        text.style.color = 'var(--danger)';
+      } else {
+        dot.classList.remove('offline');
+        text.textContent = 'CONECTANDO...';
+        text.style.color = 'var(--warning)';
+      }
+    }
+
+    // ══════════════════════════════════════
+    //  INICIALIZACIÓN
+    // ══════════════════════════════════════
+    function initApp() {
+      initMap();
+      fetchSightings();
+      fetchStats();
+
+      // Polling para nuevos reportes
+      setInterval(() => {
+        fetchSightings();
+      }, POLL_INTERVAL);
+
+      // Event listener para búsqueda
+      document.getElementById('searchBtn').addEventListener('click', () => {
+        const shape = document.getElementById('shapeFilter').value;
+        const country = document.getElementById('countryFilter').value;
+        fetchSightings(shape, country);
+      });
+
+      // Permitir Enter en selects
+      document.querySelectorAll('select').forEach(select => {
+        select.addEventListener('change', () => {
+          const shape = document.getElementById('shapeFilter').value;
+          const country = document.getElementById('countryFilter').value;
+          fetchSightings(shape, country);
+        });
+      });
+    }
+
+    // Prevenir scroll cuando modal está abierto
+    document.getElementById('modal').addEventListener('wheel', (e) => {
+      e.stopPropagation();
+    });
+  </script>
+</body>
+</html>

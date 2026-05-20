@@ -1,0 +1,20 @@
+[build]
+  publish = "."
+  command = "echo 'PWA Ready - Sin build step'"
+
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+
+[[headers]]
+  for = "/manifest.json"
+  [headers.values]
+    Cache-Control = "max-age=86400, must-revalidate"
+
+[[redirects]]
+  from = "/api/*"
+  to = "https://ufo-tracker-api.onrender.com/api/:splat"
+  status = 200
+  force = true
+  headers = { X-From = "Netlify" }
